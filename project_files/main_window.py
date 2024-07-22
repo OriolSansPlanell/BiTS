@@ -23,7 +23,7 @@ from segmentation_widget import SegmentationWidget
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Tomography Segmentation Tool (GPU-accelerated)")
+        self.setWindowTitle("BiTS: Bivariate Tomography Segmentation")
         self.setGeometry(100, 100, 1600, 1000)
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -427,37 +427,82 @@ class MainWindow(QMainWindow):
 
         # Use QTimer to allow GUI to update
         QTimer.singleShot(100, lambda: self._save_images_worker(save_dir))
-
+        
     def _save_images_worker(self, save_dir):
         subdirs = ['segmented_volume1', 'segmented_volume2', 'mask_volume1', 'mask_volume2']
         for subdir in subdirs:
             os.makedirs(os.path.join(save_dir, subdir), exist_ok=True)
-
+        
+        hist_extent = self.histogram_widget.im.get_extent()
+        print(f"Histogram extent: {hist_extent}")
+        
         for i in range(self.volume1.shape[0]):
-            self.slice_slider.setValue(i)
-            self.update_segmentation()
-    
             image1 = self.volume1[i].cpu().numpy()
             image2 = self.volume2[i].cpu().numpy()
             
+            print(f"\nSlice {i}:")
+            print(f"Image1 range: {np.min(image1)} to {np.max(image1)}")
+            print(f"Image2 range: {np.min(image2)} to {np.max(image2)}")
+            
             if self.polygon is not None:
-                scaled_vertices = self.scale_polygon_to_image(self.polygon.vertices, image1.shape)
-                scaled_polygon = Path(scaled_vertices)
-                xy = np.column_stack((np.ravel(np.indices(image1.shape))))
-                mask = scaled_polygon.contains_points(xy).reshape(image1.shape)
+                print(f"Polygon vertices: {self.polygon.vertices}")
+                
+                # Normalize polygon vertices
+                x_min, x_max = np.min(image1), np.max(image1)
+                y_min, y_max = np.min(image2), np.max(image2)
+                if self.histogram_widget.log_scale:
+                    x_min, x_max = np.log10(x_min), np.log10(x_max)
+                    y_min, y_max = np.log10(y_min), np.log10(y_max)
+                    normalized_vertices = [(np.log10(x) - x_min) / (x_max - x_min) for x in self.polygon.vertices[:, 0]], \
+                                          [(np.log10(y) - y_min) / (y_max - y_min) for y in self.polygon.vertices[:, 1]]
+                else:
+                    normalized_vertices = [(x - x_min) / (x_max - x_min) for x in self.polygon.vertices[:, 0]], \
+                                          [(y - y_min) / (y_max - y_min) for y in self.polygon.vertices[:, 1]]
+                normalized_polygon = Path(list(zip(*normalized_vertices)))
+                
+                print("Normalized polygon vertices:")
+                print(normalized_polygon.vertices)
+    
+                # Create a mask based on the histogram values
+                mask = np.zeros(image1.shape, dtype=bool)
+                points_checked = 0
+                points_inside = 0
+                for ii in range(image1.shape[0]):
+                    for jj in range(image1.shape[1]):
+                        val1 = image1[ii, jj]
+                        val2 = image2[ii, jj]
+                        
+                        if self.histogram_widget.log_scale:
+                            point = [(np.log10(val1) - x_min) / (x_max - x_min),
+                                     (np.log10(val2) - y_min) / (y_max - y_min)]
+                        else:
+                            point = [(val1 - x_min) / (x_max - x_min),
+                                     (val2 - y_min) / (y_max - y_min)]
+                        
+                        points_checked += 1
+                        if normalized_polygon.contains_point(point):
+                            mask[ii, jj] = True
+                            points_inside += 1
+    
+                print(f"Number of points in mask: {np.sum(mask)}")
+                print(f"Percentage of points in mask: {np.sum(mask) / mask.size * 100:.2f}%")
             else:
                 mask = np.ones_like(image1, dtype=bool)
+                print("Using full mask")
     
             segmented1 = np.where(mask, image1, 0)
             segmented2 = np.where(mask, image2, 0)
+    
+            print(f"Segmented1 range: {np.min(segmented1)} to {np.max(segmented1)}")
+            print(f"Segmented2 range: {np.min(segmented2)} to {np.max(segmented2)}")
     
             tifffile.imwrite(os.path.join(save_dir, 'segmented_volume1', f'slice_{i:04d}.tiff'), segmented1)
             tifffile.imwrite(os.path.join(save_dir, 'segmented_volume2', f'slice_{i:04d}.tiff'), segmented2)
             tifffile.imwrite(os.path.join(save_dir, 'mask_volume1', f'slice_{i:04d}.tiff'), mask.astype(np.uint8) * 255)
             tifffile.imwrite(os.path.join(save_dir, 'mask_volume2', f'slice_{i:04d}.tiff'), mask.astype(np.uint8) * 255)
-
+            
             self.progress_bar.setValue(i + 1)
-
+        
         self.progress_bar.hide()
         self.statusBar.showMessage("Images saved successfully!", 3000)
 

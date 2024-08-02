@@ -1,18 +1,18 @@
 # BiTS: Bivariate Tomography Segmentation Software
 
 ## Table of Contents
-1. [Introduction](##-1.-Introduction)
-2. [Installation](##-2.-Installation)
-3. [Getting Started](##-3.-Getting-Started)
-4. [User Interface](##-4.-User-Interface)
-5. [Features](##-5.-Features)
-6. [Workflow](##-6.-Workflow)
-7. [Advanced Usage](##-7.-Advanced-Usage)
-8. [Troubleshooting](##-8.-Troubleshooting)
-9. [FAQ](##-9.-FAQ)
-10. [Technical Details](##-10.-Technical-Details)
-11. [Contributing](##-11.-Contributing)
-12. [License](##-12.-License)
+1. [Introduction](##-1-introduction)
+2. [Installation](##-2-installation)
+3. [Getting Started](##-3-getting-started)
+4. [User Interface](##-4-user-interface)
+5. [Features](##-5-features)
+6. [Workflow](##-6-workflow)
+7. [Advanced Usage](##-7-advanced-usage)
+8. [Troubleshooting](##-8-troubleshooting)
+9. [FAQ](##-9-faq)
+10. [Technical Details](##-10-technical-details)
+11. [Contributing](##-11-contributing)
+12. [License](##-12-license)
 
 ## 1. Introduction
 

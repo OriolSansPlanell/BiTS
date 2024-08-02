@@ -1,7 +1,7 @@
 # BiTS: Bivariate Tomography Segmentation Software
 
 ## Table of Contents
-1. [Introduction](##1-introduction)
+1. [Introduction](##-1-introduction)
 2. [Installation](##-2-installation)
 3. [Getting Started](##-3-getting-started)
 4. [User Interface](##-4-user-interface)

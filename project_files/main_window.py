@@ -19,6 +19,7 @@ from matplotlib.path import Path
 import matplotlib.pyplot as plt
 from Histogram_widget import HistogramWidget
 from segmentation_widget import SegmentationWidget
+from matplotlib.widgets import RectangleSelector, PolygonSelector
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -365,7 +366,7 @@ class MainWindow(QMainWindow):
             "slice": self.slice_slider.value(),
             "polygon": self.polygon.vertices.tolist() if self.polygon else None
         }
-        filename, _ = QFileDialog.getSaveFileName(self, "Save Settings", "", "JSON Files (*.json)")
+        filename, _ = QFileDialog.getSaveFileName(self, "Save Settings", "Sample_selection.json", "JSON Files (*.json)")
         if filename:
             with open(filename, 'w') as f:
                 json.dump(settings, f)
@@ -376,14 +377,39 @@ class MainWindow(QMainWindow):
         if filename:
             with open(filename, 'r') as f:
                 settings = json.load(f)
+            
             self.plane_combo.setCurrentText(settings["plane"])
             self.slice_slider.setValue(settings["slice"])
+            
             if settings["polygon"]:
                 vertices = np.array(settings["polygon"])
                 self.polygon = Path(vertices)
-                self.histogram_widget.polygon = vertices
-                self.histogram_widget.polygon_selector.set_visible(True)
+                
+                # Redraw the polygon or rectangle on the histogram
+                if len(vertices) == 4:  # Rectangle
+                    self.histogram_widget.selection_type = 'rectangle'
+                    x0, y0 = vertices.min(axis=0)
+                    x1, y1 = vertices.max(axis=0)
+                    self.histogram_widget.selector = RectangleSelector(
+                        self.histogram_widget.ax,
+                        self.histogram_widget.onselect_rectangle,
+                        useblit=True,
+                        button=[1],
+                        minspanx=5, minspany=5,
+                        spancoords='pixels',
+                        interactive=True
+                    )
+                    self.histogram_widget.selector.extents = (x0, x1, y0, y1)
+                else:  # Polygon
+                    self.histogram_widget.selection_type = 'polygon'
+                    self.histogram_widget.selector = PolygonSelector(
+                        self.histogram_widget.ax,
+                        self.histogram_widget.onselect_polygon
+                    )
+                    self.histogram_widget.selector.verts = vertices.tolist()
+    
                 self.histogram_widget.canvas.draw()
+            
             self.update_segmentation()
             self.statusBar.showMessage(f"Settings loaded from {filename}", 3000)
 

@@ -4,80 +4,144 @@ Created on Wed Jul 10 13:42:56 2024
 
 @author: Dr Oriol Sans Planell
 """
-from PyQt5.QtWidgets import QWidget, QVBoxLayout
-from PyQt5.QtCore import pyqtSignal
+import numpy as np
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel
+from PyQt5.QtCore import pyqtSignal, Qt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from matplotlib.widgets import PolygonSelector
 from matplotlib.patches import Rectangle
 from matplotlib.path import Path
-import numpy as np
+from matplotlib.colors import LogNorm, Normalize
+from matplotlib.ticker import FuncFormatter
+from qtrangeslider import QRangeSlider
 
 class HistogramWidget(QWidget):
-    selection_changed = pyqtSignal(object, str)  # Emit vertices and selection type
+    selection_changed = pyqtSignal(object, str)
     rectangle_updated = pyqtSignal(tuple)
+    histogram_updated = pyqtSignal()
     
     def __init__(self, parent=None):
         super().__init__(parent)
+        
+        # Create the figure and canvas immediately
         self.figure = Figure(figsize=(5, 4))
         self.canvas = FigureCanvas(self.figure)
-        layout = QVBoxLayout()
-        layout.addWidget(self.canvas)
-        self.setLayout(layout)
         self.ax = self.figure.add_subplot(111)
+        
+        # Create range slider
+        self.range_slider = QRangeSlider(Qt.Horizontal)
+        self.range_slider.setRange(0, 100)
+        self.range_slider.setValue((0, 100))
+        self.range_slider.valueChanged.connect(self.update_scale)
+        
+        # Create scale toggle button
+        self.scale_toggle = QPushButton("Log Scale")
+        self.scale_toggle.setCheckable(True)
+        self.scale_toggle.setChecked(True)
+        self.scale_toggle.clicked.connect(self.toggle_scale)
+        
+        # Create labels for min and max values
+        self.min_label = QLabel("Min: 0")
+        self.max_label = QLabel("Max: 100")
+        
+        # Layout
+        plot_layout = QVBoxLayout()
+        plot_layout.addWidget(self.canvas)
+        
+        control_layout = QHBoxLayout()
+        control_layout.addWidget(self.min_label)
+        control_layout.addWidget(self.range_slider)
+        control_layout.addWidget(self.max_label)
+        control_layout.addWidget(self.scale_toggle)
+        
+        layout = QVBoxLayout()
+        layout.addLayout(plot_layout)
+        layout.addLayout(control_layout)
+        self.setLayout(layout)
+        
         self.selector = None
         self.im = None
         self.colorbar = None
         self.xedges = None
         self.yedges = None
         self.hist = None
-        self.log_scale = False
+        self.log_scale = True
         self.selection_type = 'polygon'
         self.polygon_selected = None
         self.rectangle_patch = None
         self.drag_start = None
 
-    def plot_histogram(self, hist, xedges, yedges, log_scale=False):
+    def plot_histogram(self, hist, xedges, yedges):
         self.hist = hist
         self.xedges = xedges
         self.yedges = yedges
-        self.log_scale = log_scale
+        
+        # Set range slider based on histogram data
+        self.hist_min = max(1, np.min(self.hist[self.hist > 0]))  # Minimum non-zero value
+        self.hist_max = np.max(self.hist)
+        self.range_slider.setRange(0, 100)
+        self.range_slider.setValue((0, 100))
+        
+        self.update_plot()
 
-        self.figure.clear()
-        self.ax = self.figure.add_subplot(111)
-
-        if log_scale:
-            xedges_plot = np.log10(xedges + 1)
-            yedges_plot = np.log10(yedges + 1)
+    def update_plot(self):
+        self.ax.clear()
+        
+        if self.hist is None:
+            return
+        
+        vmin, vmax = self.range_slider.value()
+        if self.log_scale:
+            vmin = np.exp(np.log(self.hist_min) + (vmin / 100) * (np.log(self.hist_max) - np.log(self.hist_min)))
+            vmax = np.exp(np.log(self.hist_min) + (vmax / 100) * (np.log(self.hist_max) - np.log(self.hist_min)))
+            norm = LogNorm(vmin=max(1, vmin), vmax=vmax)  # Ensure vmin is at least 1 for log scale
         else:
-            xedges_plot = xedges
-            yedges_plot = yedges
-
-        self.im = self.ax.imshow(np.log(hist.T + 1), cmap='RdBu', aspect='auto',
-                                 extent=[xedges_plot[0], xedges_plot[-1], yedges_plot[0], yedges_plot[-1]],
+            vmin = self.hist_min + (vmin / 100) * (self.hist_max - self.hist_min)
+            vmax = self.hist_min + (vmax / 100) * (self.hist_max - self.hist_min)
+            norm = Normalize(vmin=vmin, vmax=vmax)
+        
+        self.im = self.ax.imshow(self.hist.T, norm=norm, cmap='viridis', aspect='auto',
+                                 extent=[self.xedges[0], self.xedges[-1],
+                                         self.yedges[0], self.yedges[-1]],
                                  origin='lower')
         
-        self.colorbar = self.figure.colorbar(self.im, ax=self.ax, label='Log count')
+        self.ax.set_xlabel('Volume 1 intensity')
+        self.ax.set_ylabel('Volume 2 intensity')
         
-        if log_scale:
-            self.ax.set_xlabel('Volume 1 intensity (log scale)')
-            self.ax.set_ylabel('Volume 2 intensity (log scale)')
-            self.ax.xaxis.set_major_formatter(lambda x, pos: f"{10**x:.0f}")
-            self.ax.yaxis.set_major_formatter(lambda x, pos: f"{10**x:.0f}")
+        if self.colorbar:
+            self.colorbar.remove()
+        if self.log_scale:
+            self.colorbar = self.figure.colorbar(self.im, ax=self.ax, label='Counts (log scale)')
         else:
-            self.ax.set_xlabel('Volume 1 intensity')
-            self.ax.set_ylabel('Volume 2 intensity')
+            self.colorbar = self.figure.colorbar(self.im, ax=self.ax, label='Counts')
         
         self.ax.set_title('2D Histogram of Registered Tomography Volumes')
         
         self.setup_selector()
         
-        
-        if self.rectangle_patch:
-            self.rectangle_patch.remove()
-            self.rectangle_patch = None
-        
         self.canvas.draw()
+        self.histogram_updated.emit()
+
+    def update_scale(self):
+        vmin, vmax = self.range_slider.value()
+        if self.log_scale:
+            vmin = np.exp(np.log(self.hist_min) + (vmin / 100) * (np.log(self.hist_max) - np.log(self.hist_min)))
+            vmax = np.exp(np.log(self.hist_min) + (vmax / 100) * (np.log(self.hist_max) - np.log(self.hist_min)))
+        else:
+            vmin = self.hist_min + (vmin / 100) * (self.hist_max - self.hist_min)
+            vmax = self.hist_min + (vmax / 100) * (self.hist_max - self.hist_min)
+        self.min_label.setText(f"Min: {vmin:.2e}")
+        self.max_label.setText(f"Max: {vmax:.2e}")
+        self.update_plot()
+
+    def toggle_scale(self):
+        self.log_scale = self.scale_toggle.isChecked()
+        if self.log_scale:
+            self.scale_toggle.setText("Log Scale")
+        else:
+            self.scale_toggle.setText("Linear Scale")
+        self.update_plot()
 
     def setup_selector(self):
         if self.selector:
@@ -85,20 +149,13 @@ class HistogramWidget(QWidget):
         
         if self.selection_type == 'polygon':
             self.selector = PolygonSelector(self.ax, self.onselect_polygon)
-            if self.rectangle_patch:
-                self.rectangle_patch.remove()
-                self.rectangle_patch = None
         else:  # rectangle
             self.selector = None
             self.canvas.mpl_connect('button_press_event', self.onpress_rectangle)
             self.canvas.mpl_connect('button_release_event', self.onrelease_rectangle)
             self.canvas.mpl_connect('motion_notify_event', self.onmove_rectangle)
-        
-        self.canvas.draw()
 
     def onselect_polygon(self, vertices):
-        if self.log_scale:
-            vertices = np.power(10, vertices)
         self.polygon_selected = Path(vertices)
         self.selection_changed.emit(vertices, 'polygon')
         
@@ -185,7 +242,7 @@ class HistogramWidget(QWidget):
         self.polygon_selected = None
         self.canvas.draw()
 
-    def toggle_scale(self):
-        self.log_scale = not self.log_scale
-        self.plot_histogram(self.hist, self.xedges, self.yedges, self.log_scale)
+#    def toggle_scale(self):
+#        self.log_scale = not self.log_scale
+#        self.plot_histogram(self.hist, self.xedges, self.yedges, self.log_scale)
 

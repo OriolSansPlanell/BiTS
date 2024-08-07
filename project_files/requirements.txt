@@ -1,0 +1,33 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Aug  2 12:06:41 2024
+
+@author: Dr Oriol Sans Planell
+"""
+
+# Core dependencies
+PyQt5==5.15.6
+numpy==1.21.5
+matplotlib==3.5.1
+tifffile==2021.11.2
+QtRangeSlider==0.1.5
+
+# For GPU acceleration
+torch==1.10.1
+
+# Image processing
+scikit-image==0.19.1
+
+# Numerical and scientific computing
+scipy==1.7.3
+
+# Optional: for advanced visualization
+plotly==5.5.0
+
+# Optional: for 3D visualization
+vtk==9.1.0
+
+# Optional: for progress bars in console
+tqdm==4.62.3
+
+

@@ -40,6 +40,7 @@ class MainWindow(QMainWindow):
         self.volume2 = None
         self.current_plane = "XY"
         self.polygon = None
+        self.histogram_widget.selection_changed.connect(self.update_segmentation)
 
     def setup_ui(self):
         central_widget = QWidget()
@@ -531,7 +532,7 @@ class MainWindow(QMainWindow):
         
         self.progress_bar.hide()
         self.statusBar.showMessage("Images saved successfully!", 3000)
-
+    
     def calculate_histogram(self):
         # Move data to CPU for histogram calculation
         volume1_cpu = self.volume1.cpu()
@@ -548,14 +549,22 @@ class MainWindow(QMainWindow):
         xedges = hist_2d.bin_edges[0].numpy()
         yedges = hist_2d.bin_edges[1].numpy()
         
-        self.histogram_widget.plot_histogram(hist, xedges, yedges, self.histogram_widget.log_scale)
+        # Plot histogram
+        self.histogram_widget.plot_histogram(hist, xedges, yedges)
+        
+        # Set slice slider maximum
         self.slice_slider.setMaximum(self.volume1.shape[0] - 1)
     
+        # Update range slider range based on histogram data
+        hist_max = hist.max()
+        self.histogram_widget.range_slider.setRange(0, int(hist_max))
+        self.histogram_widget.range_slider.setValue((0, int(hist_max)))
+    
         # Update status
-        self.statusBar.showMessage("Histogram calculated. You can now draw a polygon selection.", 5000)
-
-        x_min, x_max = np.min(self.histogram_widget.xedges), np.max(self.histogram_widget.xedges)
-        y_min, y_max = np.min(self.histogram_widget.yedges), np.max(self.histogram_widget.yedges)
+        self.statusBar.showMessage("Histogram calculated. You can now adjust the scale and make a selection.", 5000)
+    
+        # Connect histogram_updated signal to update_segmentation
+        self.histogram_widget.histogram_updated.connect(self.update_segmentation)
         
     def change_plane(self, plane):
         self.current_plane = plane

@@ -56,6 +56,8 @@ To begin using BiTS:
 - Polygon selection: Freeform selection for complex regions
 - Rectangular selection: Quick selection of rectangular regions
 
+- Zoom in and out on the histogram in order to fine-tune the selection.
+
 ### 5.3 Real-time Segmentation
 - Immediate visual feedback on segmentation results
 - Efficient processing for large datasets

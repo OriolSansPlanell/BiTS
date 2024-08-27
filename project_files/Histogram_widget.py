@@ -13,6 +13,7 @@ from matplotlib.patches import Rectangle
 from matplotlib.path import Path
 import numpy as np
 
+
 class HistogramWidget(QWidget):
     selection_changed = pyqtSignal(object, str)  # Emit vertices and selection type
     rectangle_updated = pyqtSignal(tuple)
@@ -36,6 +37,9 @@ class HistogramWidget(QWidget):
         self.polygon_selected = None
         self.rectangle_patch = None
         self.drag_start = None
+
+        # Connect the scroll event to the zoom function
+        self.canvas.mpl_connect('scroll_event', self.zoom)
 
     def plot_histogram(self, hist, xedges, yedges, log_scale=False):
         self.hist = hist
@@ -72,11 +76,49 @@ class HistogramWidget(QWidget):
         
         self.setup_selector()
         
-        
         if self.rectangle_patch:
             self.rectangle_patch.remove()
             self.rectangle_patch = None
         
+        self.canvas.draw()
+
+    def zoom(self, event):
+        # Ignore the zoom if the event was not in the axes
+        if event.inaxes != self.ax:
+            return
+
+        # Get the current x and y limits
+        cur_xlim = self.ax.get_xlim()
+        cur_ylim = self.ax.get_ylim()
+
+        # Get event location
+        xdata = event.xdata
+        ydata = event.ydata
+
+        # Get zoom factor
+        base_scale = 1.1
+        if event.button == 'up':
+            # Zoom in
+            scale_factor = 1 / base_scale
+        elif event.button == 'down':
+            # Zoom out
+            scale_factor = base_scale
+        else:
+            # Something else happened, ignore
+            scale_factor = 1
+
+        # Calculate new limits
+        new_width = (cur_xlim[1] - cur_xlim[0]) * scale_factor
+        new_height = (cur_ylim[1] - cur_ylim[0]) * scale_factor
+
+        relx = (cur_xlim[1] - xdata) / (cur_xlim[1] - cur_xlim[0])
+        rely = (cur_ylim[1] - ydata) / (cur_ylim[1] - cur_ylim[0])
+
+        # Set new limits
+        self.ax.set_xlim([xdata - new_width * (1 - relx), xdata + new_width * relx])
+        self.ax.set_ylim([ydata - new_height * (1 - rely), ydata + new_height * rely])
+
+        # Redraw the canvas
         self.canvas.draw()
 
     def setup_selector(self):

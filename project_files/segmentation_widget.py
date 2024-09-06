@@ -8,6 +8,8 @@ Created on Wed Jul 10 13:58:20 2024
 from PyQt5.QtWidgets import QWidget, QVBoxLayout
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+import matplotlib.pyplot as plt
+import numpy as np
 
 class SegmentationWidget(QWidget):
     def __init__(self, parent=None):
@@ -33,18 +35,25 @@ class SegmentationWidget(QWidget):
         self.colorbar1 = None
         self.colorbar2 = None
 
-    def plot_images(self, image1, image2, mask, segmented1, segmented2):
-        self.ax1.clear()
-        self.ax2.clear()
-        self.ax3.clear()
-        self.ax4.clear()
-        self.ax5.clear()
+        # Ensure that plt.show() doesn't create a new window
+        plt.ion()
 
-        self.im1 = self.ax1.imshow(image1, cmap='Spectral')
+    def plot_images(self, image1, image2, mask, segmented1, segmented2):
+        self.figure.clear()
+        self.ax1 = self.figure.add_subplot(231)
+        self.ax2 = self.figure.add_subplot(232)
+        self.ax3 = self.figure.add_subplot(233)
+        self.ax4 = self.figure.add_subplot(234)
+        self.ax5 = self.figure.add_subplot(235)
+
+        vmin1, vmax1 = np.nanmin(image1), np.nanmax(image1)
+        vmin2, vmax2 = np.nanmin(image2), np.nanmax(image2)
+
+        self.im1 = self.ax1.imshow(image1, cmap='Spectral', vmin=vmin1, vmax=vmax1)
         self.ax1.set_title('Volume 1 (Original)')
         self.ax1.axis('off')
 
-        self.im2 = self.ax2.imshow(image2, cmap='Spectral')
+        self.im2 = self.ax2.imshow(image2, cmap='Spectral', vmin=vmin2, vmax=vmax2)
         self.ax2.set_title('Volume 2 (Original)')
         self.ax2.axis('off')
 
@@ -52,23 +61,38 @@ class SegmentationWidget(QWidget):
         self.ax3.set_title('Mask')
         self.ax3.axis('off')
 
-        self.im4 = self.ax4.imshow(segmented1, cmap='Spectral')
+        self.im4 = self.ax4.imshow(segmented1, cmap='Spectral', vmin=vmin1, vmax=vmax1)
         self.ax4.set_title('Volume 1 (Segmented)')
         self.ax4.axis('off')
 
-        self.im5 = self.ax5.imshow(segmented2, cmap='Spectral')
+        self.im5 = self.ax5.imshow(segmented2, cmap='Spectral', vmin=vmin2, vmax=vmax2)
         self.ax5.set_title('Volume 2 (Segmented)')
         self.ax5.axis('off')
 
-        if self.colorbar1 is None:
-            self.colorbar1 = self.figure.colorbar(self.im1, ax=self.ax1, label='Intensity')
-        else:
-            self.colorbar1.update_normal(self.im1)
-
-        if self.colorbar2 is None:
-            self.colorbar2 = self.figure.colorbar(self.im2, ax=self.ax2, label='Intensity')
-        else:
-            self.colorbar2.update_normal(self.im2)
+        self.colorbar1 = self.figure.colorbar(self.im1, ax=self.ax1, label='Intensity')
+        self.colorbar2 = self.figure.colorbar(self.im2, ax=self.ax2, label='Intensity')
 
         self.figure.tight_layout()
         self.canvas.draw()
+        self.canvas.flush_events()  # Ensure all drawing commands are processed
+
+    def update_images(self, image1, image2, mask, segmented1, segmented2):
+        vmin1, vmax1 = np.nanmin(image1), np.nanmax(image1)
+        vmin2, vmax2 = np.nanmin(image2), np.nanmax(image2)
+
+        self.im1.set_data(image1)
+        self.im1.set_clim(vmin=vmin1, vmax=vmax1)
+        
+        self.im2.set_data(image2)
+        self.im2.set_clim(vmin=vmin2, vmax=vmax2)
+        
+        self.im3.set_data(mask)
+        
+        self.im4.set_data(segmented1)
+        self.im4.set_clim(vmin=vmin1, vmax=vmax1)
+        
+        self.im5.set_data(segmented2)
+        self.im5.set_clim(vmin=vmin2, vmax=vmax2)
+
+        self.canvas.draw()
+        self.canvas.flush_events()

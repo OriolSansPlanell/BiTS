@@ -74,6 +74,15 @@ class MainWindow(QMainWindow):
         self.max_x_slider = QSlider(Qt.Horizontal)
         self.min_y_slider = QSlider(Qt.Horizontal)
         self.max_y_slider = QSlider(Qt.Horizontal)
+
+        self.hist_min_slider = QSlider(Qt.Horizontal)
+        self.hist_max_slider = QSlider(Qt.Horizontal)
+
+        hist_range_layout = QHBoxLayout()
+        hist_range_layout.addWidget(QLabel("Histogram Min:"))
+        hist_range_layout.addWidget(self.hist_min_slider)
+        hist_range_layout.addWidget(QLabel("Histogram Max:"))
+        hist_range_layout.addWidget(self.hist_max_slider)
         
         for slider in [self.min_x_slider, self.max_x_slider, self.min_y_slider, self.max_y_slider]:
             slider_layout.addWidget(slider)
@@ -82,6 +91,8 @@ class MainWindow(QMainWindow):
 
         left_layout.addWidget(self.slider_widget)
         self.slider_widget.hide()  # Initially hide the sliders
+
+        left_layout.addLayout(hist_range_layout)
 
     def create_left_layout(self):
         layout = QVBoxLayout()
@@ -157,6 +168,8 @@ class MainWindow(QMainWindow):
         self.max_x_slider.valueChanged.connect(self.update_rectangle_from_sliders)
         self.min_y_slider.valueChanged.connect(self.update_rectangle_from_sliders)
         self.max_y_slider.valueChanged.connect(self.update_rectangle_from_sliders)
+        self.hist_min_slider.valueChanged.connect(self.update_histogram_range)
+        self.hist_max_slider.valueChanged.connect(self.update_histogram_range)
     
     def toggle_histogram_scale(self):
         if hasattr(self, 'histogram_widget'):
@@ -226,6 +239,15 @@ class MainWindow(QMainWindow):
             extents = (x0, x1, y0, y1)
             self.histogram_widget.update_rectangle(extents)
             self.update_segmentation()
+
+    def update_histogram_range(self):
+        vmin = self.hist_min_slider.value()
+        vmax = self.hist_max_slider.value()
+        self.histogram_widget.plot_histogram(self.histogram_widget.hist,
+                                            self.histogram_widget.xedges,
+                                            self.histogram_widget.yedges,
+                                            self.histogram_widget.log_scale,
+                                            vmin=vmin, vmax=vmax)
 
 
     def reset_polygon_selection(self):
@@ -547,7 +569,19 @@ class MainWindow(QMainWindow):
         hist = hist_2d.hist.numpy()
         xedges = hist_2d.bin_edges[0].numpy()
         yedges = hist_2d.bin_edges[1].numpy()
+
+        hist_min = np.min(np.log(hist + 1))
+        hist_max = np.max(np.log(hist + 1))
+        self.hist_min_slider.setRange(int(hist_min), int(hist_max))
+        self.hist_max_slider.setRange(int(hist_min), int(hist_max))
+        self.hist_min_slider.setValue(int(hist_min))
+        self.hist_max_slider.setValue(int(hist_max))
         
+        print(f"Volume shapes: {self.volume1.shape}, {self.volume2.shape}")
+        print(f"Combined shape: {combined.shape}")
+        print(f"Histogram shape: {hist.shape}")
+        print(f"Edge shapes: {xedges.shape}, {yedges.shape}")
+
         self.histogram_widget.plot_histogram(hist, xedges, yedges, self.histogram_widget.log_scale)
         self.slice_slider.setMaximum(self.volume1.shape[0] - 1)
     

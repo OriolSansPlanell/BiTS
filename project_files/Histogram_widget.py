@@ -41,8 +41,11 @@ class HistogramWidget(QWidget):
         # Connect the scroll event to the zoom function
         self.canvas.mpl_connect('scroll_event', self.zoom)
 
-    def plot_histogram(self, hist, xedges, yedges, log_scale=False):
+    def plot_histogram(self, hist, xedges, yedges, log_scale=False, vmin=None, vmax=None):
         self.hist = hist
+        if self.hist is None:
+            print("Histogram is not yet calculated")
+            return
         self.xedges = xedges
         self.yedges = yedges
         self.log_scale = log_scale
@@ -57,12 +60,20 @@ class HistogramWidget(QWidget):
             xedges_plot = xedges
             yedges_plot = yedges
 
-        self.im = self.ax.imshow(np.log(hist.T + 1), cmap='RdBu', aspect='auto',
-                                 extent=[xedges_plot[0], xedges_plot[-1], yedges_plot[0], yedges_plot[-1]],
-                                 origin='lower')
+        hist_to_plot = np.log(hist.T + 1)
         
+        # Apply vmin and vmax to the histogram display
+        if vmin is not None:
+            hist_to_plot = np.maximum(hist_to_plot, vmin)
+        if vmax is not None:
+            hist_to_plot = np.minimum(hist_to_plot, vmax)
+
+        self.im = self.ax.imshow(hist_to_plot, cmap='RdBu', aspect='auto',
+                                extent=[xedges_plot[0], xedges_plot[-1], yedges_plot[0], yedges_plot[-1]],
+                                origin='lower')
+
         self.colorbar = self.figure.colorbar(self.im, ax=self.ax, label='Log count')
-        
+
         if log_scale:
             self.ax.set_xlabel('Volume 1 intensity (log scale)')
             self.ax.set_ylabel('Volume 2 intensity (log scale)')
@@ -71,15 +82,9 @@ class HistogramWidget(QWidget):
         else:
             self.ax.set_xlabel('Volume 1 intensity')
             self.ax.set_ylabel('Volume 2 intensity')
-        
+
         self.ax.set_title('2D Histogram of Registered Tomography Volumes')
-        
         self.setup_selector()
-        
-        if self.rectangle_patch:
-            self.rectangle_patch.remove()
-            self.rectangle_patch = None
-        
         self.canvas.draw()
 
     def zoom(self, event):

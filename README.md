@@ -21,9 +21,9 @@ BiTS (Bivariate Tomography Segmentation) is an advanced, open-source software to
 - PyTorch (for GPU acceleration)
 
 ### Optional
-a. Create a conda repository: `conda create -n BITS python=3.10`
-b. Activate the conda repository: `conda activate BITS`
-c. Install pytorch with the appropriate CUDA: `pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118`
+1. Create a conda repository: `conda create -n BITS python=3.10`
+2. Activate the conda repository: `conda activate BITS`
+3. Install pytorch with the appropriate CUDA: `pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118`
 
 ### Installation Steps:
 1. Clone the repository: `git clone https://github.com/OriolSansPlanell/BiTS.git`

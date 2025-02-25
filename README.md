@@ -27,7 +27,7 @@ BiTS (Bivariate Tomography Segmentation) is an advanced, open-source software to
 
 ### Installation Steps:
 1. Clone the repository: `git clone https://github.com/OriolSansPlanell/BiTS.git`
-2. Navigate to the BiTS directory: `cd BiTS`
+2. Navigate to the BiTS directory: `cd BiTS\project_files`
 3. Install required packages: `pip install -r requirements.txt`
 4. Run the application: `python main.py`
 
